@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grafo de lecciones de transporte</title>
+<style>
+:root{
+  color-scheme: light;
+  --bg:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781; --grid:#e1e0d9; --axis:#c3c2b7;
+  --border:rgba(11,11,11,.10); --wash:rgba(11,11,11,.05);
+  --c-les:#2a78d6; --c-pro:#eb6834; --c-pra:#1baf7a; --c-con:#52514e; --c-sec:#898781; --edge:#b4b3aa;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --bg:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781; --grid:#2c2c2a; --axis:#383835;
+    --border:rgba(255,255,255,.10); --wash:rgba(255,255,255,.06);
+    --c-les:#3987e5; --c-pro:#d95926; --c-pra:#199e70; --c-con:#c3c2b7; --c-sec:#898781; --edge:#4d4d49;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781; --grid:#2c2c2a; --axis:#383835;
+  --border:rgba(255,255,255,.10); --wash:rgba(255,255,255,.06);
+  --c-les:#3987e5; --c-pro:#d95926; --c-pra:#199e70; --c-con:#c3c2b7; --c-sec:#898781; --edge:#4d4d49;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1500px;margin:0 auto;padding:16px}
+header{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:flex-end;justify-content:space-between;margin-bottom:12px}
+h1{font-size:20px;margin:0 0 2px;font-weight:650}
+.sub{color:var(--ink2);margin:0;max-width:70ch}
+.stats{display:flex;gap:20px;flex-wrap:wrap}
+.stat b{display:block;font-size:22px;font-weight:650;line-height:1.1}
+.stat span{color:var(--ink2);font-size:12px}
+.bar{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:12px}
+.seg{display:inline-flex;border:1px solid var(--axis);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:transparent;color:var(--ink);padding:6px 12px;font:inherit;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px}
+.legend label{display:inline-flex;gap:6px;align-items:center;cursor:pointer;color:var(--ink);white-space:nowrap}
+.legend label.dis{opacity:.45;cursor:default}
+.legend svg{width:14px;height:14px;flex:none}
+input[type=search]{padding:6px 10px;border:1px solid var(--axis);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;min-width:220px}
+.btn{border:1px solid var(--axis);background:transparent;color:var(--ink);border-radius:8px;padding:6px 10px;font:inherit;cursor:pointer}
+.btn:hover,.seg button[aria-pressed="false"]:hover{background:var(--wash)}
+.th{display:inline-flex;align-items:center;gap:8px;color:var(--ink)}
+.th input{width:110px;accent-color:var(--c-pra)}
+.th b{display:inline-block;min-width:1ch}
+.spacer{flex:1}
+select{padding:6px 8px;border:1px solid var(--axis);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;max-width:230px}
+.fcount{color:var(--ink2);font-size:12px}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:12px}
+#net{height:max(760px,calc(100vh - 230px));background:var(--surface);border:1px solid var(--border);border-radius:10px}
+aside{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;height:max(760px,calc(100vh - 230px));overflow:auto}
+aside h2{font-size:16px;margin:0 0 4px}
+aside h3{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink2);margin:14px 0 4px}
+.hint{color:var(--ink2)}
+[hidden]{display:none!important}
+.tag{display:inline-block;border:1px solid var(--border);background:var(--wash);border-radius:999px;padding:1px 9px;margin:0 4px 4px 0;font-size:12px}
+.badge{display:inline-block;border-radius:6px;padding:1px 8px;font-size:12px;border:1px solid var(--axis);color:var(--ink2)}
+.chip{display:block;width:100%;text-align:left;border:1px solid var(--border);background:transparent;color:var(--ink);border-radius:8px;padding:6px 8px;margin:0 0 6px;font:inherit;cursor:pointer}
+.chip:hover{background:var(--wash)}
+.chip small{color:var(--ink2);display:block}
+.rk{display:flex;justify-content:space-between;align-items:baseline;gap:10px;width:100%;text-align:left;border:1px solid var(--border);border-radius:8px;padding:5px 8px;margin:0 0 4px;color:var(--ink);font:inherit;cursor:pointer;background:linear-gradient(90deg,color-mix(in srgb,var(--bar) 26%,transparent) var(--w),transparent var(--w))}
+.rk:hover{border-color:var(--axis)}
+.rk small{color:var(--ink2);white-space:nowrap;font-size:12px}
+.rk small i{font-style:normal;color:var(--muted)}
+details{margin-top:8px}
+summary{cursor:pointer;color:var(--ink2)}
+details p{white-space:pre-wrap;margin:6px 0}
+.tables{margin-top:14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px}
+table{border-collapse:collapse;width:100%;font-size:13px;margin-top:8px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--grid);vertical-align:top}
+th{color:var(--ink2);font-weight:600}
+td.n{text-align:right;width:70px;white-space:nowrap}
+.note{color:var(--ink2);font-size:12px;margin:10px 2px 0}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+.rk.st{cursor:default}.rk.st:hover{border-color:var(--border)}
+.yrs{display:flex;align-items:flex-end;gap:2px;height:44px}.yrs i{flex:1;background:var(--c-sec);border-radius:1px}
+.yl{display:flex;justify-content:space-between;color:var(--muted);font-size:11px}
+ul.sl{list-style:none;padding:0;margin:4px 0}ul.sl li{padding:5px 0;border-bottom:1px solid var(--grid)}ul.sl a{color:var(--ink);text-underline-offset:2px}ul.sl small{display:block;color:var(--ink2);font-size:12px}
+.lnk{border:0;background:transparent;color:var(--ink);font:inherit;padding:0;cursor:pointer;text-align:left;text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--axis)}.lnk:hover{text-decoration-color:var(--ink)}.lnk.sm{font-size:11px;color:var(--ink2);margin-left:6px}
+.ovf{overflow-x:auto}
+#evm th.vt{vertical-align:bottom;font-size:12px;line-height:1.2;min-width:74px;text-align:center}
+#evm td.n{text-align:center;width:auto}#evm td.c{cursor:pointer;background:color-mix(in srgb,var(--c-les) var(--p,0%),transparent);border:1px solid var(--surface)}
+#evm td.c:hover,#evm td.c:focus-visible{outline:2px solid var(--ink2);outline-offset:-2px}#evm td.c.sel{outline:2px solid var(--ink);outline-offset:-2px}
+#evm tr.tot td,#evm tr.tot th{border-top:2px solid var(--axis);color:var(--ink2)}
+.zero{color:var(--muted)}.rk i{font-style:normal;color:var(--muted);font-size:11px}.ops{display:block;color:var(--ink2);font-size:12px;white-space:normal;line-height:1.25}tr.hl td{background:var(--wash)}
+.evtop{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;margin:6px 0 4px}
+.tables h3{font-size:13px;margin:14px 0 4px}
+@media (max-width: 900px){
+  .main{grid-template-columns:1fr}
+  #net{height:60vh}
+  aside{height:auto;max-height:60vh}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>Grafo de conocimiento: lecciones aprendidas de transporte</h1>
+    <p class="sub">Prototipo construido con las 80 lecciones curadas de INE/TSP. Cada lección se descompone en problema, consecuencia y práctica recomendada, y se conecta con sus operaciones, países y etapa del ciclo. Los subsectores se enlazan con el mapa de evidencia de transporte de 3ie (711 estudios).</p>
+  </div>
+  <div class="stats" id="stats"></div>
+</header>
+
+<div class="bar" role="toolbar" aria-label="Controles del grafo">
+  <div class="seg" role="group" aria-label="Vista">
+    <button id="m-res" aria-pressed="true" title="Problemas, prácticas y consecuencias agregados">Resumen</button>
+    <button id="m-det" aria-pressed="false" title="Lecciones individuales y todas sus conexiones">Detalle</button>
+  </div>
+  <div class="legend" id="legend" aria-label="Leyenda y filtros por tipo de nodo"></div>
+  <label class="legend" id="simwrap"><input type="checkbox" id="sim"> Similitud textual entre lecciones</label>
+  <label class="th" id="thwrap" title="Oculta los vínculos respaldados por pocas lecciones para leer mejor el grafo">Vínculos respaldados por al menos <input type="range" id="th" min="1" max="5" value="3" aria-label="Mínimo de lecciones por vínculo"><b id="thv">3</b> lecciones <span class="hint" id="thcount"></span></label>
+  <label class="th" title="Cruza todo el grafo con un subsector">Subsector <select id="f-ss" aria-label="Filtrar por subsector"></select></label>
+  <label class="th" title="Cruza todo el grafo con un país">País <select id="f-pa" aria-label="Filtrar por país"></select></label>
+  <label class="th" id="f-nt-wrap" title="Filtra por el grupo semántico que arrojó el análisis de texto (resultado provisional)" hidden>Grupo NLP <select id="f-nt" aria-label="Filtrar por grupo del análisis de texto"></select></label>
+  <span class="fcount" id="fcount"></span>
+  <span class="spacer"></span>
+  <input type="search" id="q" placeholder="Buscar (p. ej. expropiación, CREMA, Haití)" aria-label="Buscar en las lecciones">
+  <button class="btn" id="relayout" title="Volver a acomodar el grafo">Reacomodar</button>
+  <button class="btn" id="theme" title="Cambiar tema claro/oscuro">Tema</button>
+</div>
+
+<div class="main">
+  <div id="net" role="img" aria-label="Grafo interactivo. La vista de tabla debajo contiene la misma información en formato de lista."></div>
+  <aside id="panel" aria-live="polite"></aside>
+</div>
+
+<section class="tables" id="ev" aria-labelledby="evh">
+  <h2 id="evh" style="font-size:16px;margin:2px 0">Lecciones frente a evidencia: mapa de evidencia de transporte (3ie)</h2>
+  <p class="hint" style="margin:2px 0 0">Cada celda cuenta los estudios de evaluación de impacto que miden ese resultado para ese tipo de intervención. La columna «Lecciones y operaciones» cuenta las lecciones del corpus INE/TSP relacionadas con el tema y las operaciones de las que se extrajeron (— si el tema no tiene equivalente en las lecciones). Cómo se cuentan se explica al pie. tema (de las que se extrajeron esas lecciones). Responde al filtro de subsector y de país de arriba.</p>
+  <div class="evtop"><label class="th"><input type="checkbox" id="ev-alc"> Solo estudios con países de América Latina y el Caribe</label><span class="fcount" id="evctx"></span></div>
+  <div class="ovf"><table id="evm"></table></div>
+  <div id="evl"></div>
+  <h3>Brechas por subsector</h3>
+  <div class="ovf"><table id="evg"></table></div>
+  <p class="note" id="evnote"></p>
+  <p class="note">Cómo leer «Lecciones y operaciones»: para seguridad vial, mantenimiento vial y reforma/APP se cuentan las lecciones cuyo contenido trata el tema (según el tipo de problema y de práctica que se les asignó al leerlas). Para los demás temas se cuentan las lecciones de operaciones de ese subsector; su contenido suele ser de gestión de proyectos (contrapartida, expropiaciones, coordinación) y casi nunca trata la modalidad, así que no son «lecciones sobre» el tema. La lectura del cruce compara el peso de cada subsector entre las lecciones y entre los estudios (diferencia de 10 puntos o más); con menos de 3 lecciones no se compara.</p>
+  <p class="note">Los estudios se clasificaron automáticamente por palabras clave en título, resumen y palabras clave (la exportación del portal no trae la codificación del mapa), así que los conteos son aproximados y no reemplazan la matriz oficial de 3ie. Un estudio puede contarse en varios temas y resultados.</p>
+</section>
+
+<details class="tables">
+  <summary>Ver como tabla: problemas, consecuencias y prácticas recomendadas</summary>
+  <table id="tbl"><thead><tr><th>Problema</th><th class="n">Lecciones</th><th>Consecuencias registradas</th><th>Prácticas recomendadas (n.º de lecciones)</th></tr></thead><tbody></tbody></table>
+</details>
+<p class="note">Cómo leerlo: en la vista Resumen, una flecha de una práctica hacia un problema indica que las lecciones que identifican ese problema recomiendan esa práctica; el grosor es el número de lecciones. Las relaciones se extrajeron y etiquetaron para este prototipo y deben validarse con especialistas de transporte antes de usarse como evidencia.</p>
+</div>
+
+<script>__VIS__</script>
+<script>
+const DATA = __DATA__;
+const $ = s => document.querySelector(s);
+const root = document.documentElement;
+const cssv = v => getComputedStyle(root).getPropertyValue(v).trim();
+
+const T = {
+ 'Lección':      {c:'--c-les', shape:'dot',          size:9,  on:true,  font:11},
+ 'Problema':     {c:'--c-pro', shape:'diamond',      size:16, on:true,  font:12, scaled:true},
+ 'Práctica':     {c:'--c-pra', shape:'square',       size:14, on:true,  font:12, scaled:true},
+ 'Consecuencia': {c:'--c-con', shape:'triangleDown', size:14, on:true,  font:12, scaled:true},
+ 'Etapa':        {c:'--c-sec', shape:'triangle',     size:12, on:false, font:12},
+ 'Actor':        {c:'--c-sec', shape:'hexagon',      size:12, on:false, font:12},
+ 'País':         {c:'--c-sec', shape:'star',         size:14, on:false, font:12},
+ 'Operación':    {c:'--c-sec', shape:'dot',          size:5,  on:false, font:10},
+ 'Subsector':    {c:'--c-sec', shape:'ellipse',      size:0,  on:false, font:11},
+ 'Modalidad':    {c:'--c-sec', shape:'box',          size:0,  on:false, font:11},
+ 'Categoría de riesgo (BID)': {c:'--c-sec', shape:'box', size:0, on:false, font:11},
+ 'Evidencia':    {c:'--c-sec', shape:'box', sym:'dbox', size:0, on:false, font:11},
+ 'Cluster NLP':  {c:'--c-sec', shape:'ellipse', size:0, on:false, font:11},
+ 'Subtema NLP':  {c:'--c-sec', shape:'box', size:0, on:false, font:11},
+};
+const INSIDE = new Set(['ellipse','box']);
+const NODE = Object.fromEntries(DATA.nodes.map(n => [n.id, n]));
+const isLesson = id => NODE[id] && NODE[id].tipo === 'Lección';
+// lección -> país (vía sus operaciones), para poder mostrar países sin activar las operaciones
+(() => { const opCountry = {}; DATA.edges.forEach(e => { if (e.relacion === 'EJECUTADA_EN') opCountry[e.origen] = e.destino; });
+  const seen = new Set(), add = [];
+  DATA.edges.forEach(e => { if (isLesson(e.origen) && e.destino.startsWith('OP:')) { const p = opCountry[e.destino]; if (p && !seen.has(e.origen + p)) { seen.add(e.origen + p); add.push({origen:e.origen, destino:p, relacion:'EN_PAÍS', peso:1}); } } });
+  add.forEach(e => DATA.edges.push(e)); })();
+
+// índices
+const lessonsOf = {}, linksOf = {};           // nodo -> lecciones ; lección -> {tipo:[etiquetas]}
+DATA.edges.forEach(e => {
+  if (isLesson(e.origen)) {
+    (lessonsOf[e.destino] ||= []).push(e.origen);
+    const t = NODE[e.destino].tipo;
+    ((linksOf[e.origen] ||= {})[t] ||= []).push(e.destino);
+  }
+});
+let ACTIVE = null, DER = DATA['derived'];            // ACTIVE = conjunto de lecciones que pasan los filtros (null = todas)
+const isActive = id => !ACTIVE || ACTIVE.has(id);
+const lsOf = id => (lessonsOf[id] || []).filter(isActive);
+const countOf = id => lsOf(id).length;
+const nodeAllowed = n => n.tipo === 'Lección' ? isActive(n.id) : n.tipo === 'Evidencia' ? (!ACTIVE || (EVSS[+n.id.slice(3)] || []).some(ss => countOf(ss) > 0)) : (!ACTIVE || countOf(n.id) > 0);
+const wrap = (s, n=24) => { const w = s.split(' '); let out = [], line = ''; w.forEach(x => { if ((line + ' ' + x).trim().length > n) { out.push(line); line = x; } else line = (line + ' ' + x).trim(); }); out.push(line); return out.join('\n'); };
+const norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+// ---------- estado ----------
+let mode = 'res', selected = null, matchIds = null, built = null, thr = 3;
+const THR0 = thr;
+const on = Object.fromEntries(Object.entries(T).map(([k, v]) => [k, v.on]));
+let simOn = false;
+const pos = {};
+
+// ---------- vis ----------
+const nodesDS = new vis.DataSet(), edgesDS = new vis.DataSet();
+const net = new vis.Network($('#net'), {nodes:nodesDS, edges:edgesDS}, {
+  physics:{enabled:true, solver:'forceAtlas2Based',
+    forceAtlas2Based:{gravitationalConstant:-55, centralGravity:0.012, springLength:120, springConstant:0.07, damping:0.55, avoidOverlap:0.6},
+    stabilization:{iterations:260, updateInterval:40}},
+  interaction:{hover:true, tooltipDelay:120, multiselect:false, navigationButtons:false},
+  edges:{smooth:false, selectionWidth:1.5}, nodes:{borderWidth:1.5, borderWidthSelected:3},
+  layout:{improvedLayout:false, randomSeed:7}
+});
+net.on('stabilizationIterationsDone', () => { if (built !== 'det') return; net.setOptions({physics:{enabled:false}}); net.fit({animation:{duration:400}}); });
+net.on('dragEnd', p => { if (p.nodes.length) { const ps = net.getPositions(p.nodes); Object.assign(pos, ps); } });
+
+const RES_TYPES = ['Práctica','Problema','Consecuencia'];
+function nodeStyle(n) {
+  const t = T[n.tipo], col = cssv(t.c), ink = cssv('--ink'), surf = cssv('--surface');
+  const cnt = countOf(n.id);
+  if (mode === 'res' && RES_TYPES.includes(n.tipo)) {   // vista Resumen: cajas con etiqueta dentro
+    return {id:n.id, shape:'box', label:wrap(n.etiqueta, 46), margin:6, borderWidth:2,
+      shapeProperties:{borderRadius: n.tipo === 'Práctica' ? 14 : 3},
+      font:{color:ink, size:13, face:'system-ui, sans-serif', bold: n.tipo === 'Problema' ? '600 13px system-ui' : undefined},
+      color:{background:surf, border:col, highlight:{background:surf, border:ink}, hover:{background:surf, border:ink}},
+      title:n.etiqueta + '\n' + cnt + (cnt === 1 ? ' lección' : ' lecciones') + ' · ' + n.tipo};
+  }
+  const o = {id:n.id, shape:t.shape,
+    font:{color:ink, size:t.font, face:'system-ui, sans-serif', strokeWidth:3, strokeColor:surf}};
+  if (n.tipo === 'Lección') {
+    o.label = String(n.codigo.split('-').pop());
+    o.title = n.codigo + ' · ' + n.subtipo + '\n' + n.problema_resumen;
+  } else {
+    o.label = INSIDE.has(t.shape) ? wrap(n.etiqueta, 22) : wrap(n.etiqueta);
+    if (n.tipo === 'Operación') { o.label = n.etiqueta; o.title = n.etiqueta + (n.nombre ? ' · ' + n.nombre : '') + '\n' + n.pais; }
+    else if (n.tipo === 'Evidencia') o.title = n.etiqueta + '\n' + n.n_estudios + ' estudios (' + n.n_estudios_alc + ' con países de ALC) · tema de evidencia 3ie';
+    else o.title = n.etiqueta + '\n' + cnt + (cnt === 1 ? ' lección' : ' lecciones') + ' · ' + n.tipo;
+  }
+  if (INSIDE.has(t.shape)) {
+    o.color = {background:surf, border:col, highlight:{background:surf, border:ink}, hover:{background:surf, border:ink}};
+    o.margin = 6; o.borderWidth = 2;
+    if (n.tipo === 'Evidencia') { o.shapeProperties = {borderDashes:[5,3]}; o.label = wrap(n.etiqueta, 24) + '\n' + n.n_estudios + ' estudios'; }
+  } else {
+    o.size = t.scaled ? 11 + 3.2*Math.sqrt(cnt) : t.size;
+    o.color = {background:col, border:surf, highlight:{background:col, border:ink}, hover:{background:col, border:ink}};
+  }
+  return o;
+}
+function edgeStyle(e, i) {
+  const col = cssv('--edge'), ink2 = cssv('--ink2');
+  const o = {id:e.origen + '>' + e.destino + '>' + e.relacion, from:e.origen, to:e.destino, _rel:e.relacion, _w:e.peso};
+  if (e.relacion === 'MITIGA' || e.relacion === 'GENERA') {
+    o.width = 1 + e.peso*0.9; o.arrows = {to:{enabled:true, scaleFactor:0.6}};
+    o.smooth = {type:'cubicBezier', forceDirection:'horizontal', roundness:0.55};
+    o.color = {color: e.relacion === 'MITIGA' ? cssv('--c-pra') : cssv('--ink2'), opacity:.55};
+    if (e.relacion === 'GENERA') o.dashes = [6,4];
+    o.title = NODE[e.origen].etiqueta + (e.relacion === 'MITIGA' ? ' → mitiga → ' : ' → genera → ') + NODE[e.destino].etiqueta + '\n' + e.peso + (e.peso === 1 ? ' lección' : ' lecciones');
+  } else if (e.relacion === 'SIMILAR_A') {
+    o.width = 1 + e.peso*4; o.dashes = [3,3]; o.color = {color:cssv('--c-les'), opacity:.7};
+    o.title = 'Similitud textual ' + e.peso.toFixed(2);
+  } else if (e.relacion === 'TIENE_EVIDENCIA') {
+    o.width = 0.8; o.dashes = [2,4]; o.color = {color:col, opacity:.75}; o.title = NODE[e.origen].etiqueta + ' ↔ ' + NODE[e.destino].etiqueta + '\n' + e.peso + ' estudios en el mapa de evidencia';
+  } else {
+    o.width = 0.8; o.color = {color:col, opacity:.75};
+  }
+  return o;
+}
+
+function visibleTypes() { return mode === 'res' ? new Set(['Problema','Práctica','Consecuencia']) : new Set(Object.keys(on).filter(k => on[k])); }
+
+// Vista Resumen: tres columnas (prácticas -> problemas -> consecuencias) ordenadas para reducir cruces
+function buildRes() {
+  const es = DER.filter(e => e.relacion !== 'SE_COMBINA_CON' && e.peso >= thr);
+  const ids = new Set(); es.forEach(e => { ids.add(e.origen); ids.add(e.destino); });
+  const col = {Práctica:[], Problema:[], Consecuencia:[]};
+  DATA.nodes.forEach(n => { if (ids.has(n.id)) col[n.tipo].push(n.id); });
+  const nb = id => es.filter(e => e.origen === id || e.destino === id).map(e => e.origen === id ? e.destino : e.origen);
+  col.Problema.sort((a, b) => countOf(b) - countOf(a));
+  const rank = arr => Object.fromEntries(arr.map((id, i) => [id, arr.length > 1 ? i / (arr.length - 1) : .5]));
+  for (let k = 0; k < 6; k++) {
+    const rp = rank(col.Problema);
+    ['Práctica','Consecuencia'].forEach(t => { const bc = id => { const v = nb(id).map(x => rp[x]).filter(x => x !== undefined); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : .5; }; col[t].sort((a, b) => bc(a) - bc(b)); });
+    const rr = {...rank(col.Práctica), ...rank(col.Consecuencia)};
+    const bc2 = id => { const v = nb(id).map(x => rr[x]).filter(x => x !== undefined); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : .5; };
+    col.Problema.sort((a, b) => bc2(a) - bc2(b));
+  }
+  const X = {Práctica:-520, Problema:0, Consecuencia:500}, H = {Práctica:'Prácticas recomendadas', Problema:'Problemas identificados', Consecuencia:'Consecuencias registradas'};
+  const out = [], hdr = [];
+  Object.entries(col).forEach(([t, arr]) => {
+    const hs = arr.map(id => 16 * Math.ceil(NODE[id].etiqueta.length / 46) + 16), gap = 10, total = hs.reduce((a, b) => a + b + gap, -gap);
+    let y = -total / 2;
+    arr.forEach((id, i) => { const s = nodeStyle(NODE[id]); s.x = X[t]; s.y = y + hs[i] / 2; out.push(s); y += hs[i] + gap; });
+    hdr.push({id:'__h_' + t, label:H[t] + ' (' + arr.length + ')', shape:'text', x:X[t], y:-total / 2 - 46, physics:false,
+      font:{color:cssv('--ink2'), size:15, face:'system-ui, sans-serif'}});
+  });
+  nodesDS.clear(); edgesDS.clear();
+  nodesDS.add(out.concat(hdr)); edgesDS.add(es.map(edgeStyle));
+  $('#thcount').textContent = es.length + ' de ' + DER.filter(e => e.relacion !== 'SE_COMBINA_CON').length + ' vínculos';
+  net.setOptions({physics:{enabled:false}, edges:{smooth:{type:'cubicBezier', forceDirection:'horizontal', roundness:0.55}}});
+  setTimeout(() => net.fit({animation:false}), 60);
+}
+
+function rebuild() {
+  if (built === 'det') Object.assign(pos, net.getPositions());
+  selected = null; matchIds = null; showIntro();
+  if (mode === 'res') { built = 'res'; buildRes(); return; }
+  built = 'det';
+  net.setOptions({edges:{smooth:false}});
+  const vt = visibleTypes();
+  const ns = DATA.nodes.filter(n => vt.has(n.tipo) && nodeAllowed(n));
+  const ids = new Set(ns.map(n => n.id));
+  // en detalle, ocultar nodos aislados que no tengan aristas visibles (excepto lecciones)
+  let es = mode === 'res'
+    ? DER.filter(e => e.relacion !== 'SE_COMBINA_CON')
+    : DATA.edges.filter(e => !(e.relacion === 'EN_PAÍS' && on['Operación'])).concat(simOn ? DATA.sim : []);
+  es = es.filter(e => ids.has(e.origen) && ids.has(e.destino));
+  const conn = new Set(); es.forEach(e => { conn.add(e.origen); conn.add(e.destino); });
+  const nsv = ns.filter(n => conn.has(n.id) || n.tipo === 'Lección' || mode === 'res');
+  nodesDS.clear(); edgesDS.clear();
+  nodesDS.add(nsv.map(n => { const s = nodeStyle(n); if (pos[n.id]) { s.x = pos[n.id].x; s.y = pos[n.id].y; } return s; }));
+  edgesDS.add(es.map(edgeStyle));
+  const fresh = nsv.filter(n => !pos[n.id]).length;
+  net.setOptions({physics:{enabled:true}});
+  if (fresh === 0) net.stabilize(60); else net.stabilize(260);
+}
+
+function restyle() { // cambio de tema
+  nodesDS.update(nodesDS.getIds().filter(id => NODE[id]).map(id => nodeStyle(NODE[id])));
+  nodesDS.update(nodesDS.getIds().filter(id => !NODE[id]).map(id => ({id, font:{color:cssv('--ink2'), size:15, face:'system-ui, sans-serif'}})));
+  edgesDS.update(edgesDS.get().map(e => edgeStyle({origen:e.from, destino:e.to, relacion:e._rel, peso:e._w})));
+  applyDim();
+}
+
+// ---------- resaltado ----------
+function applyDim() {
+  let keep = null, wide = false;
+  if (matchIds && matchIds.size) keep = matchIds;
+  else if (selected) {
+    const conn = net.getConnectedNodes(selected);
+    keep = new Set([selected, ...conn]);
+    wide = !!NODE[selected] && !['Lección','Práctica','Problema','Consecuencia'].includes(NODE[selected].tipo);
+    if (wide && NODE[selected].tipo === 'Evidencia') conn.forEach(c => (lessonsOf[c] || []).forEach(l => { if (isActive(l)) keep.add(l); }));
+    if (wide) conn.forEach(c => { if (isLesson(c)) Object.entries(linksOf[c] || {}).forEach(([t, arr]) => { if (['Problema','Práctica','Consecuencia'].includes(t)) arr.forEach(x => keep.add(x)); }); });
+  }
+  nodesDS.update(nodesDS.getIds().filter(id => NODE[id]).map(id => ({id, opacity: !keep || keep.has(id) ? 1 : 0.12})));
+  const base = edgesDS.get();
+  edgesDS.update(base.map(e => {
+    const el = edgeStyle({origen:e.from, destino:e.to, relacion:e._rel, peso:e._w});
+    const inKeep = !keep || (keep.has(e.from) && keep.has(e.to) && (!selected || wide || e.from === selected || e.to === selected || matchIds));
+    return {id:e.id, color:{color:el.color.color, opacity: inKeep ? (el.color.opacity || .7) : 0.06}};
+  }));
+}
+net.on('selectNode', p => { if (!NODE[p.nodes[0]]) { net.unselectAll(); return; } selected = p.nodes[0]; matchIds = null; applyDim(); showNode(selected); });
+net.on('deselectNode', () => { selected = null; applyDim(); showIntro(); });
+
+// ---------- panel ----------
+const panel = $('#panel');
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const tags = arr => (arr || []).map(id => '<span class="tag">' + esc(NODE[id].etiqueta) + '</span>').join('');
+function chip(id) { const n = NODE[id]; return '<button class="chip" data-go="' + id + '">' + esc(n.codigo) + (n.subtipo === 'Buena práctica' ? ' · buena práctica' : '') + '<small>' + esc(n.problema_resumen) + '</small></button>'; }
+function bindChips() { panel.querySelectorAll('[data-go]').forEach(b => b.onclick = () => goTo(b.dataset.go)); }
+
+function showIntro() {
+  if (ACTIVE) { panel.innerHTML = profileHTML(null, [...ACTIVE]); bindChips(); const c = $('#clr'); if (c) c.onclick = clearFilters; return; }
+  panel.innerHTML = '<h2>Cómo explorar</h2><p class="hint">Haz clic en un nodo para ver su detalle y resaltar sus conexiones. Arrastra para mover, usa la rueda para acercar.</p>' +
+    '<p class="hint"><b>Resumen</b> muestra qué prácticas se recomiendan para cada problema y qué consecuencias suele traer. <b>Detalle</b> agrega las lecciones, las operaciones, los países y las etapas del ciclo.</p>' +
+    '<h3>Prueba con</h3><button class="chip" data-q="expropiación">Buscar: expropiación<small>Lecciones sobre derechos de vía y expropiaciones</small></button>' +
+    '<button class="chip" data-q="mantenimiento">Buscar: mantenimiento<small>Sostenibilidad y contratos por niveles de servicio</small></button>' +
+    '<button class="chip" data-q="Haití">Buscar: Haití<small>Lecciones de operaciones en un país</small></button>';
+  panel.querySelectorAll('[data-q]').forEach(b => b.onclick = () => { $('#q').value = b.dataset.q; search(); });
+}
+const TOTAL = DATA.nodes.filter(n => n.tipo === 'Lección').length;
+function hubPanel(id) { return profileHTML(NODE[id], lsOf(id)); }
+function profileHTML(n, ls) {
+  const N = ls.length || 1;
+  const agg = t => { const c = {}; ls.forEach(l => ((linksOf[l] || {})[t] || []).forEach(x => c[x] = (c[x] || 0) + 1));
+    return Object.entries(c).sort((a, b) => b[1] - a[1] || NODE[a[0]].etiqueta.localeCompare(NODE[b[0]].etiqueta)); };
+  const colr = {'Problema':'--c-pro', 'Práctica':'--c-pra', 'Consecuencia':'--c-con'};
+  const sec = (title, t, max = 8) => { const a = agg(t); if (!a.length || (n && t === n.tipo)) return '';
+    return '<h3>' + title + '</h3>' + a.slice(0, max).map(([x, k]) => '<button class="rk" data-go="' + x + '" style="--w:' + Math.round(100 * k / N) + '%;--bar:var(' + (colr[t] || '--c-sec') + ')"><span>' + esc(NODE[x].etiqueta) + '</span><small>' + k + ' de ' + ls.length + ' <i title="Porcentaje sobre el total de lecciones del corpus">(corpus ' + Math.round(100 * (lessonsOf[x] || []).length / TOTAL) + '%)</i></small></button>').join('') +
+      (a.length > max ? '<p class="hint">…y ' + (a.length - max) + ' más</p>' : ''); };
+  let h;
+  if (n) { h = '<h2>' + esc(n.etiqueta) + '</h2><span class="badge">' + esc(n.tipo) + '</span>';
+    if (ACTIVE) h += '<p class="hint">Dentro del filtro activo: ' + filterText() + '.</p>';
+    if (n.tipo === 'Operación') h += '<p class="hint">' + esc(n.nombre) + ' · ' + esc(n.pais) + '</p>';
+    if (n.tipo === 'Subtema NLP') h += '<p class="hint"><b>Términos principales:</b> ' + esc(n.terminos) + '</p>';
+    if ((n.tipo === 'Subtema NLP' || n.tipo === 'Cluster NLP') && DATA.nlp) h += '<p class="hint">' + esc(DATA.nlp.aviso) + ' ' + esc(DATA.nlp.metodo) + '</p>'; }
+  else h = '<h2>Vista filtrada</h2><p>' + filterText().split(' + ').map(x => '<span class="tag">' + esc(x) + '</span>').join('') + '</p><button class="btn" id="clr">Quitar filtros</button>';
+  const nBuenas = ls.filter(l => NODE[l].subtipo === 'Buena práctica').length;
+  if (!ls.length) return h + '<p class="hint">No hay lecciones con esta combinación.</p>';
+  h += '<p class="hint">' + ls.length + (ls.length === 1 ? ' lección' : ' lecciones') + (nBuenas ? ' (' + nBuenas + ' de buenas prácticas)' : '') + '. Las barras muestran en cuántas de ellas aparece cada elemento; entre paréntesis, su peso en todo el corpus.</p>';
+  h += ($('#f-pa').value ? '' : sec('Países con más lecciones', 'País', 10)) + sec('Problemas más frecuentes', 'Problema') + sec('Prácticas más recomendadas', 'Práctica') + sec('Consecuencias registradas', 'Consecuencia', 6) +
+       sec('Etapa del ciclo', 'Etapa') + sec('Categoría de riesgo (BID)', 'Categoría de riesgo (BID)', 5) + ($('#f-ss').value ? '' : sec('Subsectores', 'Subsector', 6));
+  if (n && n.tipo === 'País') {
+    const ops = DATA.edges.filter(e => e.relacion === 'EJECUTADA_EN' && e.destino === id_of(n)).map(e => e.origen).filter(o => countOf(o) > 0).sort((a, b) => countOf(b) - countOf(a));
+    h += '<h3>Operaciones (' + ops.length + ')</h3>' + ops.map(o => '<span class="tag" title="' + esc(NODE[o].nombre) + '">' + esc(NODE[o].etiqueta) + ' (' + countOf(o) + ')</span>').join('');
+  }
+  if (!n || n.tipo === 'Subsector' || n.tipo === 'País') { const ssId = n && n.tipo === 'Subsector' ? n.id : curSs(), paId = n && n.tipo === 'País' ? n.id : $('#f-pa').value; if (ssId || paId) h += evBlock(ssId, paId); }
+  h += '<details' + (n ? '' : ' open') + '><summary>Ver las ' + ls.length + ' lecciones</summary>' + ls.map(chip).join('') + '</details>';
+  return h;
+}
+const id_of = n => n.id;
+function showNode(id) {
+  const n = NODE[id]; let h = '';
+  if (n.tipo === 'Lección') {
+    const L = linksOf[id] || {}, ops = (L['Operación'] || []);
+    const paises = [...new Set(ops.map(o => NODE[o].pais))];
+    h += '<h2>' + esc(n.codigo) + '</h2><span class="badge">' + esc(n.subtipo) + '</span>';
+    h += '<h3>Problema o hallazgo</h3><p>' + esc(n.problema_resumen) + '</p><h3>Práctica recomendada</h3><p>' + esc(n.recomendacion_resumen) + '</p>';
+    [['Problema','Tipo de problema'],['Consecuencia','Consecuencias'],['Práctica','Prácticas'],['Etapa','Etapa del ciclo'],['Actor','Dirigida a'],['Categoría de riesgo (BID)','Categoría de riesgo (BID)'],['Subsector','Subsector'],['Cluster NLP','Cluster semántico (análisis de texto' + (DATA.nlp && DATA.nlp.provisional ? ', provisional' : '') + ')'],['Subtema NLP','Subtema NLP (dentro del cluster dominante)']].forEach(([t, lab]) => {
+      if ((L[t] || []).length) h += '<h3>' + lab + '</h3>' + tags(L[t]);
+    });
+    h += '<h3>Países</h3>' + paises.map(p => '<span class="tag">' + esc(p) + '</span>').join('');
+    h += '<h3>Operaciones (' + ops.length + ')</h3>' + ops.map(o => '<span class="tag" title="' + esc(NODE[o].nombre) + '">' + esc(NODE[o].etiqueta) + '</span>').join('');
+    h += '<details><summary>Texto original: hallazgo</summary><p>' + esc(n.hallazgo) + '</p></details><details><summary>Texto original: recomendación</summary><p>' + esc(n.recomendacion) + '</p></details>';
+    const sim = DATA.sim.filter(e => (e.origen === id || e.destino === id) && isActive(e.origen) && isActive(e.destino)).sort((a, b) => b.peso - a.peso);
+    if (sim.length) h += '<h3>Lecciones similares</h3>' + sim.map(e => chip(e.origen === id ? e.destino : e.origen)).join('');
+    panel.innerHTML = h; bindChips(); return;
+  }
+  if (n.tipo === 'Evidencia') { panel.innerHTML = evPanel(id); bindChips(); return; }
+  if (!['Práctica','Problema','Consecuencia'].includes(n.tipo)) { panel.innerHTML = hubPanel(id); bindChips(); return; }
+  const ls = lsOf(id);
+  h += '<h2>' + esc(n.etiqueta) + '</h2><span class="badge">' + esc(n.tipo) + '</span>';
+  if (n.tipo === 'Operación') h += '<p class="hint">' + esc(n.nombre) + ' · ' + esc(n.pais) + '</p>';
+  if (n.tipo === 'Práctica' || n.tipo === 'Problema' || n.tipo === 'Consecuencia') {
+    const rel = DER.filter(e => e.relacion !== 'SE_COMBINA_CON' && (e.origen === id || e.destino === id)).sort((a, b) => b.peso - a.peso);
+    const sec = (title, arr) => arr.length ? '<h3>' + title + '</h3>' + arr.map(e => '<span class="tag">' + esc(NODE[e.origen === id ? e.destino : e.origen].etiqueta) + ' (' + e.peso + ')</span>').join('') : '';
+    if (n.tipo === 'Problema') h += sec('Prácticas que lo mitigan', rel.filter(e => e.destino === id)) + sec('Consecuencias asociadas', rel.filter(e => e.origen === id));
+    if (n.tipo === 'Práctica') h += sec('Problemas que mitiga', rel.filter(e => e.origen === id));
+    if (n.tipo === 'Consecuencia') h += sec('Problemas que la generan', rel.filter(e => e.destino === id));
+  }
+  h += '<h3>' + ls.length + (ls.length === 1 ? ' lección conectada' : ' lecciones conectadas') + '</h3>' + ls.slice(0, 40).map(chip).join('');
+  panel.innerHTML = h; bindChips();
+}
+
+// ---------- navegación ----------
+function goTo(id) {
+  if (!NODE[id]) return;
+  const t = NODE[id].tipo;
+  if (!nodesDS.get(id)) {
+    if (mode === 'res' || !on[t]) { mode = 'det'; on[t] = true; syncUI(); rebuild(); }
+  }
+  setTimeout(() => {
+    if (!nodesDS.get(id)) return;
+    net.selectNodes([id]); selected = id; matchIds = null; applyDim(); showNode(id);
+    net.focus(id, {scale: mode === 'res' ? net.getScale() : 1.1, animation:{duration:500}});
+  }, 80);
+}
+
+// ---------- búsqueda ----------
+function search() {
+  const q = norm($('#q').value.trim());
+  if (!q) { matchIds = null; applyDim(); showIntro(); return; }
+  const hits = DATA.nodes.filter(n => n.tipo === 'Lección' && isActive(n.id) && norm([n.codigo, n.problema_resumen, n.recomendacion_resumen, n.hallazgo, n.recomendacion, (linksOf[n.id]['Operación'] || []).map(o => NODE[o].pais + ' ' + NODE[o].nombre).join(' ')].join(' ')).includes(q)).map(n => n.id);
+  const other = DATA.nodes.filter(n => n.tipo !== 'Lección' && n.tipo !== 'Operación' && nodeAllowed(n) && norm(n.etiqueta).includes(q)).map(n => n.id);
+  matchIds = new Set([...hits, ...other]);
+  // incluir vecinos de tipo problema/práctica de las lecciones halladas para dar contexto en la vista Resumen
+  hits.forEach(l => Object.entries(linksOf[l] || {}).forEach(([t, arr]) => { if (['Problema','Práctica','Consecuencia'].includes(t)) arr.forEach(x => matchIds.add(x)); }));
+  selected = null; net.unselectAll(); applyDim();
+  panel.innerHTML = '<h2>' + hits.length + (hits.length === 1 ? ' lección encontrada' : ' lecciones encontradas') + '</h2>' +
+    '<p class="hint">En el grafo se resaltan los problemas y prácticas de estas lecciones.</p>' + hits.slice(0, 40).map(chip).join('') + (hits.length > 40 ? '<p class="hint">…y ' + (hits.length - 40) + ' más</p>' : '');
+  bindChips();
+}
+let tmr; $('#q').addEventListener('input', () => { clearTimeout(tmr); tmr = setTimeout(search, 220); });
+
+// ---------- controles ----------
+function symbol(shape, color, filled = true) {
+  const s = {dot:'<circle cx="7" cy="7" r="5"/>', diamond:'<path d="M7 1 13 7 7 13 1 7z"/>', square:'<rect x="2" y="2" width="10" height="10" rx="1"/>', triangleDown:'<path d="M1.5 3h11L7 12.5z"/>', triangle:'<path d="M7 1.5 12.5 12h-11z"/>', star:'<path d="M7 1l1.8 3.8 4.2.5-3.1 2.9.8 4.1L7 10.2 3.3 12.3l.8-4.1L1 5.3l4.2-.5z"/>', hexagon:'<path d="M7 1l5 3v6l-5 3-5-3V4z"/>', ellipse:'<ellipse cx="7" cy="7" rx="6" ry="4.2" fill="none" stroke-width="1.6"/>', box:'<rect x="1.5" y="3" width="11" height="8" rx="1.5" fill="none" stroke-width="1.6"/>', dbox:'<rect x="1.5" y="3" width="11" height="8" rx="1.5" fill="none" stroke-width="1.6" stroke-dasharray="2.5 1.8"/>', database:'<ellipse cx="7" cy="3.2" rx="5" ry="2"/><path d="M2 3.2v7.3c0 1.1 2.2 2 5 2s5-.9 5-2V3.2c0 1.1-2.2 2-5 2s-5-.9-5-2z"/>'}[shape];
+  return '<svg viewBox="0 0 14 14" fill="' + color + '" stroke="' + color + '" aria-hidden="true">' + s + '</svg>';
+}
+function buildLegend() {
+  $('#legend').innerHTML = Object.entries(T).map(([k, t]) =>
+    '<label data-t="' + k + '"><input type="checkbox" ' + (on[k] ? 'checked' : '') + '>' + symbol(t.sym || t.shape, cssv(t.c)) + esc(k === 'Categoría de riesgo (BID)' ? 'Categoría BID' : k === 'Evidencia' ? 'Tema de evidencia' : k === 'Cluster NLP' ? 'Cluster NLP (prov.)' : k === 'Subtema NLP' ? 'Subtema NLP (prov.)' : k) + '</label>').join('');
+  $('#legend').querySelectorAll('label').forEach(l => {
+    const k = l.dataset.t, cb = l.querySelector('input');
+    cb.onchange = () => {
+      if (mode === 'res') { if (RES_TYPES.includes(k)) { cb.checked = true; return; } mode = 'det'; on[k] = true; syncUI(); rebuild(); return; }
+      on[k] = cb.checked; rebuild(); };
+  });
+}
+function syncUI() {
+  $('#m-res').setAttribute('aria-pressed', mode === 'res'); $('#m-det').setAttribute('aria-pressed', mode === 'det');
+  $('#legend').querySelectorAll('label').forEach(l => {
+    const k = l.dataset.t, cb = l.querySelector('input'), fixed = mode === 'res';
+    const inRes = ['Problema','Práctica','Consecuencia'].includes(k);
+    cb.checked = fixed ? inRes : on[k]; cb.disabled = false; l.classList.toggle('dis', fixed && !inRes); l.title = fixed && !inRes ? 'Al activarlo se cambia a la vista Detalle' : '';
+    l.querySelector('svg').outerHTML = symbol(T[k].sym || T[k].shape, cssv(T[k].c));
+  });
+  $('#simwrap').style.display = mode === 'res' ? 'none' : ''; $('#thwrap').style.display = mode === 'res' ? '' : 'none';
+}
+$('#m-res').onclick = () => { mode = 'res'; syncUI(); rebuild(); };
+$('#m-det').onclick = () => { mode = 'det'; syncUI(); rebuild(); };
+$('#th').oninput = e => { thr = +e.target.value; $('#thv').textContent = thr; if (mode === 'res') rebuild(); };
+$('#sim').onchange = e => { simOn = e.target.checked; if (mode === 'det') rebuild(); };
+$('#relayout').onclick = () => { Object.keys(pos).forEach(k => delete pos[k]); rebuild(); };
+$('#theme').onclick = () => {
+  const cur = root.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  root.dataset.theme = cur === 'dark' ? 'light' : 'dark'; syncUI(); restyle();
+};
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { syncUI(); restyle(); });
+
+// ---------- tabla ----------
+function buildTable() {
+  const rows = DATA.nodes.filter(n => n.tipo === 'Problema').map(p => {
+    const pr = DER.filter(e => e.relacion === 'MITIGA' && e.destino === p.id).sort((a, b) => b.peso - a.peso);
+    const cs = DER.filter(e => e.relacion === 'GENERA' && e.origen === p.id).sort((a, b) => b.peso - a.peso);
+    return {p, n:countOf(p.id), pr, cs};
+  }).filter(r => r.n > 0).sort((a, b) => b.n - a.n);
+  $('#tbl tbody').innerHTML = rows.map(r => '<tr><td>' + esc(r.p.etiqueta) + '</td><td class="n">' + r.n + '</td><td>' +
+    (r.cs.map(e => esc(NODE[e.destino].etiqueta) + ' (' + e.peso + ')').join('; ') || '—') + '</td><td>' +
+    r.pr.map(e => esc(NODE[e.origen].etiqueta) + ' (' + e.peso + ')').join('; ') + '</td></tr>').join('');
+}
+
+// ---------- filtros cruzados (subsector × país) ----------
+const filterText = () => [$('#f-ss').value && NODE[$('#f-ss').value].etiqueta, $('#f-pa').value && NODE[$('#f-pa').value].etiqueta, $('#f-nt').value && NODE[$('#f-nt').value].etiqueta].filter(Boolean).join(' + ');
+function computeDer() {
+  const mit = {}, gen = {};
+  ACTIVE.forEach(l => { const L = linksOf[l] || {}, pb = L['Problema'] || [], pr = L['Práctica'] || [], cs = L['Consecuencia'] || [];
+    pb.forEach(p => { pr.forEach(r => { const k = r + '|' + p; mit[k] = (mit[k] || 0) + 1; }); cs.forEach(c => { const k = p + '|' + c; gen[k] = (gen[k] || 0) + 1; }); }); });
+  const out = []; Object.entries(mit).forEach(([k, w]) => { const [a, b] = k.split('|'); out.push({origen:a, destino:b, relacion:'MITIGA', peso:w}); });
+  Object.entries(gen).forEach(([k, w]) => { const [a, b] = k.split('|'); out.push({origen:a, destino:b, relacion:'GENERA', peso:w}); });
+  return out;
+}
+function applyFilter() {
+  const ss = $('#f-ss').value, pa = $('#f-pa').value, nt = $('#f-nt').value;
+  const inNt = n => { const L = linksOf[n.id] || {}; return (L['Cluster NLP'] || []).includes(nt) || (L['Subtema NLP'] || []).includes(nt); };
+  ACTIVE = (!ss && !pa && !nt) ? null : new Set(DATA.nodes.filter(n => n.tipo === 'Lección' && (!ss || ((linksOf[n.id] || {})['Subsector'] || []).includes(ss)) && (!pa || ((linksOf[n.id] || {})['País'] || []).includes(pa)) && (!nt || inNt(n))).map(n => n.id));
+  DER = ACTIVE ? computeDer() : DATA['derived'];
+  Object.keys(pos).forEach(k => delete pos[k]);
+  thr = !ACTIVE ? THR0 : (ACTIVE.size <= 20 ? 1 : Math.min(THR0, 2)); $('#th').value = thr; $('#thv').textContent = thr;
+  $('#fcount').textContent = ACTIVE ? 'Mostrando ' + ACTIVE.size + ' de ' + TOTAL + ' lecciones' : '';
+  matchIds = null; $('#q').value = '';
+  buildTable(); rebuild(); renderEv();
+}
+function clearFilters() { $('#f-ss').value = ''; $('#f-pa').value = ''; $('#f-nt').value = ''; applyFilter(); }
+function fillFilters() {
+  const opt = (tipo, sel) => { const arr = DATA.nodes.filter(n => n.tipo === tipo && (lessonsOf[n.id] || []).length).sort((a, b) => lessonsOf[b.id].length - lessonsOf[a.id].length);
+    sel.innerHTML = '<option value="">Todos</option>' + arr.map(n => '<option value="' + n.id + '">' + esc(n.etiqueta) + ' (' + lessonsOf[n.id].length + ')</option>').join(''); };
+  opt('Subsector', $('#f-ss')); opt('País', $('#f-pa'));
+  $('#f-ss').onchange = applyFilter; $('#f-pa').onchange = applyFilter;
+  const nl = DATA.nlp;   // grupo NLP: clusters y subtemas del análisis de texto (solo si el grafo los trae)
+  if (nl) {
+    const g = tipo => DATA.nodes.filter(n => n.tipo === tipo && (lessonsOf[n.id] || []).length).sort((a, b) => tipo === 'Cluster NLP' ? (a.id === 'NC:-1') - (b.id === 'NC:-1') || lessonsOf[b.id].length - lessonsOf[a.id].length : a.id.localeCompare(b.id, undefined, {numeric:true}));
+    const o = n => '<option value="' + n.id + '">' + esc(n.etiqueta) + ' (' + lessonsOf[n.id].length + ')</option>';
+    $('#f-nt').innerHTML = '<option value="">Todos</option><optgroup label="Clusters">' + g('Cluster NLP').map(o).join('') + '</optgroup><optgroup label="Subtemas del cluster dominante">' + g('Subtema NLP').map(o).join('') + '</optgroup>';
+    $('#f-nt').onchange = applyFilter; $('#f-nt-wrap').hidden = false;
+  }
+}
+
+// ---------- evidencia externa: mapa de evidencia de transporte (3ie) ----------
+const EV = DATA.evidence || null;
+const EVSS = {}; if (EV) Object.entries(EV.ssmap).filter(([ss]) => NODE[ss]).forEach(([ss, ks]) => ks.forEach(k => (EVSS[k] ||= []).push(ss)));
+let evAlc = false, evSel = null, evShown = 25;
+const curSs = () => $('#f-ss').value, curPa = () => $('#f-pa').value ? NODE[$('#f-pa').value].etiqueta : '';
+const shortName = s => s.split(' (')[0].split(',')[0];
+const studyMatch = (s, ks, pa) => (!ks || ks.some(k => s.iv.includes(k))) && (!pa || s.co.includes(EV.countries.indexOf(pa)));
+const studiesFor = (ks, pa) => EV.studies.filter(s => studyMatch(s, ks, pa));
+const lessonsOfThemes = ks => { const set = new Set(); ks.forEach(k => (EVSS[k] || []).forEach(ss => lsOf(ss).forEach(l => set.add(l)))); return set; };
+const opsOf = ls => { const s = new Set(), pa = curPa(); [...ls].forEach(l => ((linksOf[l] || {})['Operación'] || []).forEach(o => { if (!pa || NODE[o].pais === pa) s.add(o); })); return s; };
+const tally = (sts, field, names) => { const c = {}; sts.forEach(s => s[field].forEach(i => c[i] = (c[i] || 0) + 1)); return Object.entries(c).sort((a, b) => b[1] - a[1]).map(([i, k]) => [names[i], k]); };
+const bars = (items, total) => items.map(([lab, k]) => '<div class="rk st" style="--w:' + Math.round(100 * k / Math.max(total, 1)) + '%;--bar:var(--c-sec)"><span>' + esc(lab) + '</span><small>' + k + '</small></div>').join('');
+const studyItem = s => { const meta = [s.y, s.co.slice(0, 3).map(c => EV.countries[c]).join(', '), s.de.map(d => shortName(EV.designs[d])).join(', ')].filter(Boolean).join(' · ');
+  return '<li>' + (s.u ? '<a href="' + esc(s.u) + '" target="_blank" rel="noopener">' + esc(s.t) + '</a>' : esc(s.t)) + '<small>' + esc(meta) + '</small></li>'; };
+const byYear = (a, b) => (b.y || 0) - (a.y || 0);
+function yearBars(sts) {
+  const y0 = 2005, y1 = 2025, c = Array(y1 - y0 + 1).fill(0); sts.forEach(s => { if (s.y >= y0 && s.y <= y1) c[s.y - y0]++; });
+  const m = Math.max(...c, 1);
+  return '<div class="yrs" role="img" aria-label="Estudios por año de publicación, de 2005 a 2025">' + c.map((v, i) => '<i title="' + (y0 + i) + ': ' + v + '" style="height:' + Math.max(2, Math.round(100 * v / m)) + '%"></i>').join('') + '</div><div class="yl"><span>2005</span><span>2025</span></div>';
+}
+function themeLessons(k) {
+  const tp = (EV.topic || {})[k];
+  if (tp) return {basis:'topic', set:new Set(DATA.nodes.filter(n => n.tipo === 'Lección' && isActive(n.id) && ((((linksOf[n.id] || {})['Problema']) || []).some(x => tp.pb.includes(x)) || (((linksOf[n.id] || {})['Práctica']) || []).some(x => tp.pr.includes(x)))).map(n => n.id))};
+  const core = (EV.core[k] || []).filter(ss => NODE[ss]);
+  if (core.length) return {basis:'own', set:new Set(core.flatMap(ss => lsOf(ss))), ss:core};
+  return {basis:null, set:new Set()};
+}
+function evPanel(id) {
+  const n = NODE[id], k = +id.slice(3), pa = curPa();
+  const sts = studiesFor([k], pa), alc = sts.filter(s => s.alc);
+  let h = '<h2>' + esc(n.etiqueta) + '</h2><span class="badge">Tema de evidencia · 3ie</span>';
+  if (pa) h += '<p class="hint">Solo estudios sobre ' + esc(pa) + '.</p>';
+  h += '<p class="hint"><b>' + sts.length + '</b> estudios en el mapa de evidencia de transporte, <b>' + alc.length + '</b> con al menos un país de América Latina y el Caribe.</p>';
+  if (!sts.length) return h;
+  h += '<h3>Por año de publicación</h3>' + yearBars(sts);
+  h += '<h3>Resultados que miden</h3>' + bars(tally(sts, 'ou', EV.outcomes).slice(0, 8), sts.length);
+  const sd = sts.filter(s => !s.de.length).length;
+  h += '<h3>Diseño</h3>' + bars(tally(sts, 'de', EV.designs), sts.length) + (sd ? '<p class="hint">' + sd + ' sin diseño identificado automáticamente.</p>' : '');
+  const sc = sts.filter(s => !s.co.length).length;
+  if (!pa) h += '<h3>Países más estudiados</h3>' + bars(tally(sts, 'co', EV.countries).slice(0, 8), sts.length) + (sc ? '<p class="hint">' + sc + ' sin país identificado.</p>' : '');
+  const sss = EVSS[k] || [], tl = themeLessons(k), coreS = tl.ss || [], cl = tl.set, ls = [...lessonsOfThemes([k])];
+  h += '<h3>Lecciones del corpus INE/TSP</h3>';
+  if (!tl.basis) h += '<p class="hint">Este tema no tiene un equivalente claro en las lecciones' + (sss.length ? '; solo hay subsectores más amplios que lo incluyen (abajo), y sus lecciones no son necesariamente sobre este tema.' : ', y tampoco hay un subsector afín: hay evidencia externa, pero ninguna experiencia operativa curada.') + '</p>';
+  else if (tl.basis === 'topic') h += '<p class="hint"><b>' + cl.size + '</b> lecciones cuyo contenido trata el tema (según el tipo de problema y de práctica que se les asignó), citadas en <b>' + opsOf(cl).size + '</b> operaciones.</p>';
+  else h += '<p class="hint"><b>' + cl.size + '</b> lecciones de operaciones de ese subsector, que cubren <b>' + opsOf(cl).size + '</b> operaciones. Ojo: su contenido suele ser de gestión de proyectos y no siempre trata específicamente el tema.</p>';
+  if (sss.length) h += '<p class="hint">Subsectores vinculados:</p>' + sss.map(ss => '<button class="rk" data-go="' + ss + '" style="--w:' + Math.round(100 * countOf(ss) / TOTAL) + '%;--bar:var(--c-sec)"><span>' + esc(NODE[ss].etiqueta) + ' <i>' + (tl.basis !== 'own' ? '' : coreS.includes(ss) ? 'propio' : 'más amplio') + '</i></span><small>' + countOf(ss) + (countOf(ss) === 1 ? ' lección' : ' lecciones') + '</small></button>').join('') +
+    '<details><summary>Ver las ' + (cl.size || ls.length) + ' lecciones' + (cl.size ? (tl.basis === 'topic' ? ' sobre el tema' : ' del subsector propio') : ' de los subsectores vinculados') + '</summary>' + [...(cl.size ? cl : ls)].slice(0, 40).map(chip).join('') + '</details>';
+  if (alc.length) h += '<h3>Estudios en ALC (más recientes)</h3><ul class="sl">' + alc.sort(byYear).slice(0, 10).map(studyItem).join('') + '</ul>' + (alc.length > 10 ? '<p class="hint">…y ' + (alc.length - 10) + ' más en el mapa de la parte inferior.</p>' : '');
+  return h;
+}
+function evBlock(ssId, paId) {
+  if (!EV) return '';
+  const pa = paId ? NODE[paId].etiqueta : '';
+  const ks = ssId ? (EV.ssmap[ssId] || []) : null;
+  let h = '<h3>Evidencia externa (mapa 3ie)</h3>';
+  if (ssId && !ks.length) return h + '<p class="hint">Este subsector no tiene un tema equivalente en el mapa de evidencia de transporte.</p>';
+  if (pa && !EV.countries.includes(pa)) return h + '<p class="hint">El mapa no registra estudios sobre ' + esc(pa) + ' (o no se pudo identificar el país en sus títulos y resúmenes).</p>';
+  const sts = studiesFor(ks, pa), alc = sts.filter(s => s.alc);
+  const nl = ssId && paId ? lsOf(ssId).filter(l => ((linksOf[l] || {})['País'] || []).includes(paId)).length : (ssId ? countOf(ssId) : countOf(paId));
+  h += '<p class="hint"><b>' + sts.length + '</b> estudios' + (ssId ? ' sobre ' + ks.length + (ks.length === 1 ? ' tema afín' : ' temas afines') : '') + (pa ? ' sobre ' + esc(pa) : '') + ' (' + alc.length + ' con países de ALC), frente a <b>' + nl + '</b> lecciones' + (ssId && !pa && sts.length ? ' · ' + (sts.length / Math.max(nl, 1)).toFixed(1) + ' estudios por lección' : '') + '.</p>';
+  if (!sts.length) return h;
+  const th = tally(sts, 'iv', EV.themes).slice(0, 6), ou = tally(sts, 'ou', EV.outcomes).slice(0, 5);
+  h += '<p class="hint">Temas de evidencia:</p>' + th.map(([lab, k]) => { const kk = EV.themes.indexOf(lab); return '<button class="rk" data-go="EV:' + kk + '" style="--w:' + Math.round(100 * k / sts.length) + '%;--bar:var(--c-sec)"><span>' + esc(lab) + '</span><small>' + k + '</small></button>'; }).join('');
+  h += '<p class="hint">Resultados que miden:</p>' + bars(ou, sts.length);
+  h += '<details><summary>Ver estudios (más recientes)</summary><ul class="sl">' + sts.slice().sort(byYear).slice(0, 12).map(studyItem).join('') + '</ul></details>';
+  return h;
+}
+
+// matriz intervención x resultado, con lecciones al lado
+function evRows() { const ss = curSs(); if (ss) return EV.ssmap[ss] || []; return EV.focus || EV.themes.map((_, i) => i); }
+function renderEv() {
+  if (!EV) return;
+  const pa = curPa(), ss = curSs();
+  let sts = evAlc ? EV.studies.filter(s => s.alc) : EV.studies; if (pa) sts = sts.filter(s => studyMatch(s, null, pa));
+  const ks = evRows().slice(), no = EV.outcomes.length;
+  const cell = {}, tot = {}; let mx = 1;
+  ks.forEach(k => { cell[k] = Array(no).fill(0); tot[k] = 0; });
+  sts.forEach(s => s.iv.forEach(k => { if (!cell[k]) return; tot[k]++; s.ou.forEach(o => { cell[k][o]++; if (cell[k][o] > mx) mx = cell[k][o]; }); }));
+  ks.sort((a, b) => tot[b] - tot[a]);
+  const colTot = Array(no).fill(0); sts.forEach(s => { if (s.iv.some(k => cell[k])) s.ou.forEach(o => colTot[o]++); });
+  let h = '<thead><tr><th>Tema de intervención</th><th class="n" title="Seguridad vial, mantenimiento y reforma/APP: lecciones cuyo contenido trata el tema. Los demás temas: lecciones de operaciones del subsector equivalente, cuyo contenido a menudo es de gestión de proyectos. «—» = sin equivalente en las lecciones">Lecciones y operaciones</th><th class="n">Estudios</th>' + EV.outcomes.map((o, j) => '<th class="n vt" title="' + esc(o) + '">' + esc(shortName(o)) + '</th>').join('') + '</tr></thead><tbody>';
+  ks.forEach(k => {
+    const tl = themeLessons(k), lset = tl.set, nl = lset.size, nop = opsOf(lset).size, none = !tl.basis;
+    h += '<tr><th scope="row"><button class="lnk" data-row="' + k + '">' + esc(EV.themes[k]) + '</button>' + (NODE['EV:' + k] ? ' <button class="lnk sm" data-graph="' + k + '" title="Ver este tema en el grafo">↗ grafo</button>' : '') + '</th>' +
+      '<td class="n' + (nl ? '' : ' zero') + '" title="' + (none ? 'Sin equivalente en las lecciones: los subsectores afines son más amplios y no se cuentan' : tl.basis === 'topic' ? 'Lecciones cuyo contenido trata el tema (según el tipo de problema y de práctica asignados)' : 'Lecciones de operaciones del subsector ' + tl.ss.map(ss => NODE[ss].etiqueta).join(' + ') + '. Su contenido a menudo es de gestión de proyectos y no trata específicamente el tema') + '">' + (none ? '—' : nl + '<span class="ops">' + nop + (tl.basis === 'topic' ? ' op. citan el tema' : ' op. del subsector') + '</span>') + '</td><td class="n"><b>' + tot[k] + '</b></td>' +
+      cell[k].map((v, j) => '<td class="n c' + (evSel && evSel.r === k && evSel.c === j ? ' sel' : '') + '" data-r="' + k + '" data-c="' + j + '" tabindex="0" ' + (v ? 'style="--p:' + Math.round(10 + 50 * v / mx) + '%"' : '') + '>' + (v || '<span class="zero">·</span>') + '</td>').join('') + '</tr>';
+  });
+  h += '<tr class="tot"><th scope="row">Estudios con al menos un tema</th><td class="n"></td><td class="n"><b>' + sts.filter(s => s.iv.some(k => cell[k])).length + '</b></td>' + colTot.map(v => '<td class="n">' + v + '</td>').join('') + '</tr></tbody>';
+  $('#evm').innerHTML = h;
+  $('#evctx').textContent = [ss ? 'Subsector: ' + NODE[ss].etiqueta : 'Todos los temas' + (EV.focus ? ' relevantes para este grafo' : ''), pa ? 'País: ' + pa : '', evAlc ? 'solo estudios con países de ALC' : ''].filter(Boolean).join(' · ') + ' · ' + sts.filter(s => s.iv.some(k => cell[k])).length + ' estudios en los temas mostrados';
+  $('#evm').querySelectorAll('td.c').forEach(td => { const f = () => { evSel = {r:+td.dataset.r, c:+td.dataset.c}; evShown = 25; renderEv(); }; td.onclick = f; td.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); f(); } }; });
+  $('#evm').querySelectorAll('[data-row]').forEach(b => b.onclick = () => { evSel = {r:+b.dataset.row, c:null}; evShown = 25; renderEv(); });
+  $('#evm').querySelectorAll('[data-graph]').forEach(b => b.onclick = () => { $('#net').scrollIntoView({behavior:'smooth', block:'center'}); goTo('EV:' + b.dataset.graph); });
+  // brechas por subsector
+  const TL = ACTIVE ? ACTIVE.size : TOTAL, TS = Math.max(sts.length, 1);
+  const rows = Object.entries(EV.ssmap).filter(([s]) => NODE[s]).map(([s, kk]) => { const st = sts.filter(x => kk.some(k => x.iv.includes(k))), l = countOf(s), o = opsOf(lsOf(s)).size;
+    const pl = Math.round(100 * l / Math.max(TL, 1)), pe = Math.round(100 * st.length / TS);
+    const lect = !st.length ? 'Sin estudios en el mapa' : l < 3 ? 'Pocas lecciones para comparar' : pl - pe >= 10 ? 'Más presencia en las lecciones' : pe - pl >= 10 ? 'Más presencia en la evidencia' : 'Presencia similar';
+    return {s, l, o, pl, pe, e:st.length, a:st.filter(x => x.alc).length, lect}; }).sort((a, b) => b.l - a.l || b.e - a.e);
+  const unmapped = DATA.nodes.filter(n => n.tipo === 'Subsector' && !EV.ssmap[n.id] && countOf(n.id) > 0);
+  $('#evg').innerHTML = '<thead><tr><th>Subsector de las lecciones</th><th class="n" title="Lecciones etiquetadas con el subsector y operaciones de las que se extrajeron">Lecciones y operaciones</th><th class="n" title="Porcentaje sobre las ' + TL + ' lecciones del grafo o del filtro activo">% de las lecciones</th><th class="n">Estudios afines</th><th class="n" title="Porcentaje del total de estudios en el mapa">% de los estudios</th><th class="n">En ALC</th><th>Lectura del cruce</th></tr></thead><tbody>' +
+    rows.map(r => '<tr' + (r.s === ss ? ' class="hl"' : '') + '><td>' + esc(NODE[r.s].etiqueta) + '</td><td class="n">' + r.l + '<span class="ops">' + r.o + ' op. del subsector</span></td><td class="n">' + r.pl + '%</td><td class="n">' + r.e + '</td><td class="n">' + r.pe + '%</td><td class="n">' + r.a + '</td><td>' + r.lect + '</td></tr>').join('') +
+    unmapped.map(n => '<tr><td>' + esc(n.etiqueta) + '</td><td class="n">' + countOf(n.id) + '<span class="ops">' + opsOf(lsOf(n.id)).size + ' op. del subsector</span></td><td class="n">' + Math.round(100 * countOf(n.id) / Math.max(TL, 1)) + '%</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td>Sin tema equivalente en el mapa de evidencia</td></tr>').join('') + '</tbody>';
+  const nol = EV.themes.map((t, k) => k).filter(k => !(EVSS[k] || []).length && evRows().includes(k)).map(k => EV.themes[k]);
+  $('#evnote').innerHTML = nol.length ? 'Temas del mapa sin subsector equivalente en las lecciones: ' + nol.map(esc).join('; ') + '.' : '';
+  // lista de estudios de la celda / fila elegida
+  if (evSel) {
+    const list = sts.filter(s => s.iv.includes(evSel.r) && (evSel.c === null || s.ou.includes(evSel.c))).sort((a, b) => (b.alc - a.alc) || byYear(a, b));
+    $('#evl').innerHTML = '<h3>' + esc(EV.themes[evSel.r]) + (evSel.c === null ? '' : ' × ' + esc(EV.outcomes[evSel.c])) + ' · ' + list.length + ' estudios <button class="lnk sm" id="evx">cerrar</button></h3>' +
+      '<ul class="sl">' + list.slice(0, evShown).map(studyItem).join('') + '</ul>' + (list.length > evShown ? '<button class="btn" id="evmore">Mostrar más (' + (list.length - evShown) + ')</button>' : '') + '<p class="hint">Primero los estudios con países de ALC, luego los más recientes.</p>';
+    $('#evx').onclick = () => { evSel = null; renderEv(); }; const mb = $('#evmore'); if (mb) mb.onclick = () => { evShown += 50; renderEv(); };
+  } else $('#evl').innerHTML = '<p class="hint">Haz clic en una celda o en el nombre de un tema para ver los estudios.</p>';
+}
+
+// ---------- arranque ----------
+(function init() {
+  const cnt = t => DATA.nodes.filter(n => n.tipo === t).length;
+  const bp = DATA.nodes.filter(n => n.subtipo === 'Buena práctica').length;
+  $('#stats').innerHTML = [[cnt('Lección'), 'lecciones'], [bp, 'buenas prácticas'], [cnt('Problema'), 'tipos de problema'], [cnt('Práctica'), 'prácticas'], [cnt('Operación'), 'operaciones'], [cnt('País'), 'países']].concat(DATA.evidence ? [[DATA.evidence.studies.length, 'estudios en el mapa de evidencia']] : [])
+    .map(([v, l]) => '<div class="stat"><b>' + v + '</b><span>' + l + '</span></div>').join('');
+  if (EV) { $('#ev-alc').onchange = e => { evAlc = e.target.checked; renderEv(); }; renderEv(); } else $('#ev').style.display = 'none';
+  buildLegend(); syncUI(); fillFilters(); buildTable(); rebuild();
+})();
+</script>
+</body>
+</html>

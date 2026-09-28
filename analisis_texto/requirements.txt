@@ -1,0 +1,11 @@
+pandas
+numpy
+scikit-learn
+umap-learn
+hdbscan
+simplemma
+ftfy
+statsmodels
+matplotlib
+openpyxl
+sentence-transformers   # solo para --backend sbert (descarga paraphrase-multilingual-mpnet-base-v2 de Hugging Face)
